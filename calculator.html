@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>UBC Business Profit Calculator (Tons)</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f4;
+            padding: 20px;
+        }
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            background: #fff;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+        h1 {
+            text-align: center;
+            color: #333;
+        }
+        .exchange-rates, .profit-calc, .delivery-calc, .inputs {
+            margin-bottom: 20px;
+        }
+        .inputs div {
+            margin-bottom: 10px;
+        }
+        .inputs input {
+            padding: 5px;
+            width: 100%;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+        }
+        .result {
+            background: #e0f7fa;
+            padding: 10px;
+            border-radius: 5px;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>UBC Business Profit Calculator (Tons)</h1>
+
+        <div class="exchange-rates">
+            <h2>Exchange Rates</h2>
+            <div>1 USD = <span id="usdToRiel">0</span> Riel</div>
+            <div>1 USD = <span id="usdToBaht">0</span> Baht</div>
+            <div>1 Baht = <span id="bahtToRiel">0</span> Riel</div>
+            <div>1 Baht = <span id="bahtToUsd">0</span> USD</div>
+            <div>1 Riel = <span id="rielToUsd">0</span> USD</div>
+            <div>1 Riel = <span id="rielToBaht">0</span> Baht</div>
+        </div>
+
+        <div class="inputs">
+            <h2>Daily Inputs</h2>
+            <div>
+                <label for="buyPrice">Buy-in Price per kg (Riel):</label>
+                <input type="number" id="buyPrice" value="8000">
+            </div>
+            <div>
+                <label for="sellPrice">Sell-out Price per kg (Baht):</label>
+                <input type="number" id="sellPrice" value="72">
+            </div>
+            <div>
+                <label for="ubcQuantity">Quantity of UBCs (Tons):</label>
+                <input type="number" id="ubcQuantity" value="25" max="25">
+            </div>
+        </div>
+
+        <div class="profit-calc">
+            <h2>Profit Calculation</h2>
+            <div class="result" id="profitResult"></div>
+        </div>
+
+        <div class="delivery-calc">
+            <h2>Delivery Costs</h2>
+            <div>Delivery to border: 450 USD</div>
+            <div>From border to Thailand: 55000 Baht</div>
+            <div class="result" id="deliveryResult"></div>
+        </div>
+    </div>
+
+    <script>
+        async function fetchExchangeRates() {
+            try {
+                // Example API for fetching exchange rates
+                const response = await fetch('https://api.exchangerate-api.com/v4/latest/USD');
+                const data = await response.json();
+
+                // Update exchange rates in HTML
+                document.getElementById('usdToRiel').textContent = data.rates.KHR.toFixed(4);
+                document.getElementById('usdToBaht').textContent = data.rates.THB.toFixed(4);
+                document.getElementById('bahtToRiel').textContent = (data.rates.THB * data.rates.KHR).toFixed(4);
+                document.getElementById('bahtToUsd').textContent = (1 / data.rates.THB).toFixed(4);
+                document.getElementById('rielToUsd').textContent = (1 / data.rates.KHR).toFixed(6);
+                document.getElementById('rielToBaht').textContent = (data.rates.KHR / data.rates.THB).toFixed(6);
+
+                // Call the profit calculation function to update calculations based on new rates
+                calculateProfit();
+            } catch (error) {
+                console.error('Error fetching exchange rates:', error);
+            }
+        }
+
+        // Initial fetch of exchange rates
+        fetchExchangeRates();
+
+        // Function to calculate profit and update display
+        function calculateProfit() {
+            const buyPricePerKgRiel = parseFloat(document.getElementById('buyPrice').value); // 8000 Riel/kg
+            const sellPricePerKgBaht = parseFloat(document.getElementById('sellPrice').value); // 72 Baht/kg
+            const ubcQuantityTons = parseFloat(document.getElementById('ubcQuantity').value); // Max 25 tons
+
+            const totalKg = ubcQuantityTons * 1000; // Convert tons to kg
+
+            // Total purchase cost in Riel
+            const totalPurchaseCostRiel = buyPricePerKgRiel * totalKg; // Riel
+
+            // Total purchase cost in USD
+            const totalPurchaseCostUsd = totalPurchaseCostRiel * (1 / parseFloat(document.getElementById('rielToUsd').textContent));
+
+            // Total selling revenue in Baht
+            const totalSellingRevenueBaht = sellPricePerKgBaht * totalKg; // Baht
+
+            // Total selling revenue in USD
+            const totalSellingRevenueUsd = totalSellingRevenueBaht * (1 / parseFloat(document.getElementById('bahtToUsd').textContent));
+
+            // Calculate delivery costs
+            const deliveryToBorderUsd = 450; // Fixed delivery cost
+            const deliveryFromBorderBaht = 55000; // Variable delivery cost in Baht
+            const deliveryFromBorderUsd = deliveryFromBorderBaht * (1 / parseFloat(document.getElementById('bahtToUsd').textContent)); // Convert to USD
+            const totalDeliveryCostUsd = deliveryToBorderUsd + deliveryFromBorderUsd; // Total delivery cost in USD
+
+            // Calculate total profit
+            const totalProfit = totalSellingRevenueUsd - (totalPurchaseCostUsd + totalDeliveryCostUsd); // Total Profit in USD
+
+            // Display results
+            document.getElementById('profitResult').textContent = `Total Profit for ${ubcQuantityTons} tons after delivery costs: ${totalProfit.toFixed(2)} USD`;
+            document.getElementById('deliveryResult').textContent = `Total delivery cost: ${totalDeliveryCostUsd.toFixed(2)} USD`;
+        }
+
+        // Event listeners for real-time calculation updates
+        document.getElementById('buyPrice').addEventListener('input', calculateProfit);
+        document.getElementById('sellPrice').addEventListener('input', calculateProfit);
+        document.getElementById('ubcQuantity').addEventListener('input', calculateProfit);
+    </script>
+</body>
+</html>
